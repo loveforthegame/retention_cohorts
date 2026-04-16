@@ -1,0 +1,14 @@
+name = "predis-retention-worker"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# API key is stored as a secret — never in this file.
+# After deploying, run:
+#   wrangler secret put CLAUDE_API_KEY
+# Then paste your Anthropic API key when prompted.
+
+[vars]
+# No non-secret vars needed
+
+# Free tier: 100,000 requests/day
+# Worker handles: /insights and /chat endpoints

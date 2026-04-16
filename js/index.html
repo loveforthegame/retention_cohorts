@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Retention Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='url(%23fg)'/%3E%3Cpath d='M8 24L16 8L24 24M10 20h12' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cdefs%3E%3ClinearGradient id='fg' x1='0' y1='0' x2='32' y2='32' gradientUnits='userSpaceOnUse'%3E%3Cstop stop-color='%235B67E9'/%3E%3Cstop offset='1' stop-color='%23EC4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+</head>
+<body>
+
+<div id="upload-screen" class="upload-screen">
+  <div class="upload-orb upload-orb-1"></div>
+  <div class="upload-orb upload-orb-2"></div>
+  <div class="upload-content">
+    <div class="upload-mark">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="10" fill="url(#ug1)"/><path d="M11 25L18 11L25 25M13 22h10" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="ug1" x1="0" y1="0" x2="36" y2="36"><stop stop-color="#5B67E9"/><stop offset="1" stop-color="#EC4899"/></linearGradient></defs></svg>
+    </div>
+    <h1 class="upload-title">Retention Dashboard</h1>
+    <p class="upload-subtitle">Upload your data. All computation happens locally — no raw data leaves your browser.</p>
+
+    <div class="upload-zone" id="upload-zone">
+      <div class="upload-zone-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="upload-zone-text">Drop .xlsx here</div>
+      <div class="upload-zone-sub">or click anywhere to choose a file</div>
+      <input type="file" id="file-input" accept=".xlsx" style="display:none" />
+      <label for="file-input" class="btn-gradient upload-label">Choose File</label>
+      <div id="file-selected-state" style="display:none;margin-top:10px;font-size:12px;color:var(--success);font-weight:600"></div>
+    </div>
+
+    <div id="upload-error" class="upload-error" style="display:none"></div>
+
+    <div id="past-runs-section" style="display:none">
+      <div class="past-runs-label">Recent Runs</div>
+      <div id="past-runs-list" class="past-runs-list"></div>
+    </div>
+  </div>
+</div>
+
+<div id="processing-overlay" class="processing-overlay" style="display:none">
+  <div class="processing-box">
+    <div class="processing-ring"></div>
+    <div class="processing-text" id="processing-text">Reading your data...</div>
+    <div class="processing-sub">Computing locally — no hallucinations</div>
+  </div>
+</div>
+
+<div id="dashboard" class="dashboard" style="display:none">
+  <header class="dash-header">
+    <div class="dash-header-left">
+      <svg width="26" height="26" viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="8" fill="url(#hg1)"/><path d="M11 25L18 11L25 25M13 22h10" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><defs><linearGradient id="hg1" x1="0" y1="0" x2="36" y2="36"><stop stop-color="#5B67E9"/><stop offset="1" stop-color="#EC4899"/></linearGradient></defs></svg>
+      <span class="dash-title">Retention Dashboard</span>
+      <div class="file-chip" id="dash-file-chip" style="display:none"></div>
+    </div>
+    <div class="dash-header-right">
+      <button class="btn-ghost" id="add-plan-btn">+ Add Plan Split</button>
+      <button class="btn-ghost" id="definitions-btn">📖 Definitions</button>
+      <button class="btn-ghost" id="new-upload-btn">↑ New Upload</button>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+        <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="dash-body">
+    <aside class="sidebar">
+      <div class="sidebar-scroll">
+
+        <!-- DATE RANGE -->
+        <div class="filter-group collapsed" id="fgroup-dates">
+          <button class="fgroup-hdr" type="button" onclick="toggleFilterGroup('fgroup-dates')">
+            <span class="fgroup-label">Date Range</span>
+            <svg class="fgroup-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5L6 8L10 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="fgroup-body">
+            <input type="hidden" id="filter-date-from" />
+            <input type="hidden" id="filter-date-to" />
+            <button class="drp-trigger" id="drp-trigger" type="button">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="9.5" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M1 6h11M4.5 1v3M8.5 1v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              <span id="drp-label">All time</span>
+              <svg class="drp-chevron" width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- USER TYPE -->
+        <div class="filter-group collapsed" id="fgroup-usertype">
+          <button class="fgroup-hdr" type="button" onclick="toggleFilterGroup('fgroup-usertype')">
+            <span class="fgroup-label">User Type</span>
+            <svg class="fgroup-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5L6 8L10 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="fgroup-body">
+            <div class="pill-group" id="filter-ecom">
+              <button class="pill active" data-val="all">All</button>
+              <button class="pill" data-val="ecom">Ecom</button>
+              <button class="pill" data-val="non-ecom">Non-Ecom</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STATUS -->
+        <div class="filter-group collapsed" id="fgroup-status">
+          <button class="fgroup-hdr" type="button" onclick="toggleFilterGroup('fgroup-status')">
+            <span class="fgroup-label">Status</span>
+            <svg class="fgroup-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5L6 8L10 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="fgroup-body">
+            <div class="check-list" id="filter-status">
+              <label class="check-item"><input type="checkbox" value="active" checked /><span>Active</span></label>
+              <label class="check-item"><input type="checkbox" value="cancelled" checked /><span>Cancelled</span></label>
+              <label class="check-item"><input type="checkbox" value="non_renewing" checked /><span>Non-Renewing</span></label>
+              <label class="check-item"><input type="checkbox" value="paused" checked /><span>Paused</span></label>
+              <label class="check-item"><input type="checkbox" value="in_trial" /><span>In Trial</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ATTRIBUTION -->
+        <div class="filter-group collapsed" id="fgroup-attribution">
+          <button class="fgroup-hdr" type="button" onclick="toggleFilterGroup('fgroup-attribution')">
+            <span class="fgroup-label">Attribution</span>
+            <svg class="fgroup-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5L6 8L10 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="fgroup-body">
+            <div class="check-list" id="filter-attribution">
+              <label class="check-item"><input type="checkbox" value="Organic" checked /><span>Organic</span></label>
+              <label class="check-item"><input type="checkbox" value="Performance Marketing" checked /><span>Performance Mktg</span></label>
+              <label class="check-item"><input type="checkbox" value="SEO" checked /><span>SEO</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- TENURE -->
+        <div class="filter-group collapsed" id="fgroup-tenure">
+          <button class="fgroup-hdr" type="button" onclick="toggleFilterGroup('fgroup-tenure')">
+            <span class="fgroup-label">Tenure (paid months)</span>
+            <svg class="fgroup-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5L6 8L10 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="fgroup-body">
+            <div class="pill-group" id="filter-tenure" style="flex-direction:column;gap:5px">
+              <button class="pill active" data-val="all">All</button>
+              <button class="pill" data-val="<1m">&lt; 1 Month</button>
+              <button class="pill" data-val="1-3m">1 – 3 Months</button>
+              <button class="pill" data-val="3-6m">3 – 6 Months</button>
+              <button class="pill" data-val="6-12m">6 – 12 Months</button>
+              <button class="pill" data-val="12m+">12 + Months</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLATFORM -->
+        <div class="filter-group collapsed" id="fgroup-platform">
+          <button class="fgroup-hdr" type="button" onclick="toggleFilterGroup('fgroup-platform')">
+            <span class="fgroup-label">Platform</span>
+            <svg class="fgroup-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5L6 8L10 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="fgroup-body">
+            <div class="check-list" id="filter-platform">
+              <label class="check-item"><input type="checkbox" value="chargebee" checked /><span>Chargebee</span></label>
+              <label class="check-item"><input type="checkbox" value="shopify" /><span>Shopify</span></label>
+              <label class="check-item"><input type="checkbox" value="wix" /><span>Wix</span></label>
+              <label class="check-item"><input type="checkbox" value="rzp" /><span>Razorpay</span></label>
+              <label class="check-item"><input type="checkbox" value="apple_pay" /><span>Apple Pay</span></label>
+              <label class="check-item"><input type="checkbox" value="google_play" /><span>Google Play</span></label>
+              <label class="check-item"><input type="checkbox" value="other" /><span>Other</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- BILLING CYCLE (locked until plan split) -->
+        <div class="filter-group collapsed" id="billing-filter-section" style="display:none">
+          <button class="fgroup-hdr" type="button" onclick="toggleFilterGroup('fgroup-billing')">
+            <span class="fgroup-label">Billing Cycle</span>
+            <svg class="fgroup-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4.5L6 8L10 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="fgroup-body" id="fgroup-billing">
+            <div class="pill-group" id="filter-billing">
+              <button class="pill active" data-val="all">All</button>
+              <button class="pill" data-val="monthly">Monthly</button>
+              <button class="pill" data-val="annual">Annual</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button class="btn-gradient btn-full" id="apply-filters-btn">Apply Filters</button>
+          <button class="btn-ghost btn-full" id="reset-filters-btn">Reset All</button>
+        </div>
+
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div id="data-quality-notice" class="data-quality-notice" style="display:none"></div>
+
+      <section class="section">
+        <div class="summary-grid" id="summary-cards">
+          <div class="stat-card"><div class="stat-val" id="sc-total">—</div><div class="stat-lbl">Total Users</div></div>
+          <div class="stat-card good"><div class="stat-val" id="sc-active">—</div><div class="stat-lbl">Active</div></div>
+          <div class="stat-card bad"><div class="stat-val" id="sc-churned">—</div><div class="stat-lbl">Churned</div></div>
+          <div class="stat-card gradient-card"><div class="stat-val" id="sc-churn-rate">—</div><div class="stat-lbl">Churn Rate</div></div>
+          <div class="stat-card"><div class="stat-val" id="sc-avg-months">—</div><div class="stat-lbl">Avg Months Active</div></div>
+          <div class="stat-card warn"><div class="stat-val" id="sc-zero-postbuy">—</div><div class="stat-lbl">Zero Post-Buy Gens</div></div>
+          <div class="stat-card good"><div class="stat-val" id="sc-autopost-ever">—</div><div class="stat-lbl">Used Autopost</div></div>
+          <div class="stat-card"><div class="stat-val" id="sc-ecom">—</div><div class="stat-lbl">Ecom Users</div></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-hdr"><div class="section-title">Cohort Retention</div><div class="section-sub">How many users stayed — by buy month</div></div>
+        <div class="charts-row">
+          <div class="chart-card wide"><div class="chart-lbl">Cohort Survival Curves <span class="chart-sub">each line = one buy cohort — M0 to M12</span></div><div class="chart-wrap-h300"><canvas id="chart-cohort-bar"></canvas></div></div>
+          <div class="chart-card"><div class="chart-lbl">Cohort Heatmap <span class="chart-sub">M1→M12</span></div><div id="cohort-heatmap" class="heatmap-scroll"></div></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-hdr"><div class="section-title">Behavioral Signals</div><div class="section-sub">Active vs churned usage patterns</div></div>
+        <div class="charts-row">
+          <div class="chart-card wide"><div class="chart-lbl">Monthly Generation Activity <span class="chart-sub">Avg gens per user M1–M6</span></div><div class="chart-wrap-h220"><canvas id="chart-m1m6"></canvas></div></div>
+          <div class="chart-card"><div class="chart-lbl">Zero Post-Buy Generations</div><div id="zero-postbuy-cards" class="zpb-wrap"></div></div>
+        </div>
+        <div id="high-low-comparison" class="comparison-row"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-hdr"><div class="section-title">Activation Signals</div><div class="section-sub">From trial to purchase — what patterns emerge</div></div>
+        <div class="charts-row">
+          <div class="chart-card"><div class="chart-lbl">Trial Depth → 3M Retention <span class="chart-sub">Gens before buy</span></div><div class="chart-wrap-h220"><canvas id="chart-trial-depth"></canvas></div></div>
+          <div class="chart-card"><div class="chart-lbl">Month-0 Churn by Cohort <span class="chart-sub">Churned within 30 days</span></div><div class="chart-wrap-h220"><canvas id="chart-m0-churn"></canvas></div></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-hdr"><div class="section-title">Feature Adoption vs Retention</div><div class="section-sub">Which features do retained users actually use</div></div>
+        <div id="feature-adoption-cards" class="feature-grid"></div>
+        <div class="charts-row">
+          <div class="chart-card"><div class="chart-lbl">Content Types: Retained vs Churned</div><div class="chart-wrap-h220"><canvas id="chart-content-types"></canvas></div></div>
+          <div class="chart-card"><div class="chart-lbl">Content Type Count → 3M Retention</div><div class="chart-wrap-h220"><canvas id="chart-type-count"></canvas></div></div>
+          <div class="chart-card"><div class="chart-lbl">Channels Connected → Retention</div><div class="chart-wrap-h220"><canvas id="chart-channels"></canvas></div></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-hdr"><div class="section-title">Churn Segmentation</div><div class="section-sub">Who is churning and where it comes from</div></div>
+        <div class="charts-row">
+          <div class="chart-card"><div class="chart-lbl">By Attribution Source</div><div class="chart-wrap-h220"><canvas id="chart-attribution"></canvas></div></div>
+          <div class="chart-card"><div class="chart-lbl">By User Persona</div><div class="chart-wrap-h220"><canvas id="chart-persona"></canvas></div></div>
+          <div class="chart-card"><div class="chart-lbl">By Payment Platform</div><div class="chart-wrap-h220"><canvas id="chart-platform"></canvas></div></div>
+        </div>
+        <div id="country-section" style="display:none">
+          <div class="country-hdr">
+            <div class="chart-lbl">Top Countries by Churn Rate</div>
+            <div class="n-control">Min users: <strong id="country-n-display">30</strong> <input type="range" id="country-n-slider" min="10" max="100" value="30" class="range-input" /></div>
+          </div>
+          <div id="country-table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="section" id="plan-section" style="display:none">
+        <div class="section-hdr"><div class="section-title">Plan Analysis</div><span class="badge-success">Plan data loaded</span></div>
+        <div class="charts-row">
+          <div class="chart-card"><div class="chart-lbl">Churn by Plan Tier</div><div class="chart-wrap-h220"><canvas id="chart-plan-tier"></canvas></div></div>
+          <div class="chart-card wide"><div class="chart-lbl">Retention Curve: Monthly vs Annual</div><div class="chart-wrap-h220"><canvas id="chart-billing-retention"></canvas></div></div>
+        </div>
+      </section>
+
+      <section class="section ai-section">
+        <div class="section-hdr">
+          <div><div class="section-title">AI Insights</div><div class="section-sub">Only aggregated pivot summaries are sent — no raw data</div></div>
+          <button class="btn-gradient" id="generate-insights-btn">✦ Generate Insights</button>
+        </div>
+        <div id="insights-output"><div class="placeholder-text">Click Generate Insights — AI analysis of the current filter state will appear here.</div></div>
+      </section>
+
+      <section class="section chat-section">
+        <div class="section-hdr"><div><div class="section-title">Talk With The Data</div><div class="section-sub">Get answers backed by actual numbers from the data</div></div></div>
+        <div id="chat-messages" class="chat-messages">
+          <div class="chat-chips">
+            <button class="chat-chip" onclick="appController.sendSuggestion(this)">What % of churned users never generated after buying?</button>
+            <button class="chat-chip" onclick="appController.sendSuggestion(this)">Which channel retains best at 6 months?</button>
+            <button class="chat-chip" onclick="appController.sendSuggestion(this)">What do 6m+ retained users have in common?</button>
+            <button class="chat-chip" onclick="appController.sendSuggestion(this)">Is autoposting correlated with retention?</button>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" class="chat-input" placeholder="Ask anything about the data..." />
+          <button class="btn-gradient" id="chat-send-btn">Send</button>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div id="plan-modal" class="modal-backdrop" style="display:none">
+  <div class="modal-box">
+    <div class="modal-hdr"><div class="modal-title">Add Plan + Billing Split</div><button class="modal-close-btn" id="modal-close-x">✕</button></div>
+    <p class="modal-desc">Upload a .xlsx with 3 columns: <code>email</code>, <code>plan_name</code>, <code>billing_cycle</code>. Matched by email and refreshes all charts.</p>
+    <div class="modal-upload-row">
+      <input type="file" id="plan-file-input" accept=".xlsx" style="display:none" />
+      <label for="plan-file-input" class="btn-outline upload-label">Choose File</label>
+      <span id="plan-file-name" class="modal-file-nm">No file selected</span>
+    </div>
+    <div id="plan-upload-status" class="plan-status"></div>
+    <div class="modal-ftr">
+      <button class="btn-ghost" id="modal-cancel">Cancel</button>
+      <button class="btn-gradient" id="modal-confirm" disabled>Apply &amp; Refresh</button>
+    </div>
+  </div>
+</div>
+
+<div id="definitions-overlay" class="def-overlay"></div>
+<div id="definitions-panel" class="def-panel">
+  <div class="def-hdr">
+    <div>
+      <div class="def-hdr-title">Dashboard Definitions</div>
+      <div class="def-hdr-sub">How every metric is calculated and why it matters</div>
+    </div>
+    <button class="def-close" id="def-close-btn">✕</button>
+  </div>
+  <div class="def-body" id="def-body"></div>
+</div>
+
+<div id="drp-dropdown" class="drp-dropdown">
+  <div class="drp-panels"></div>
+  <div class="drp-footer">
+    <button class="btn-ghost drp-clear-btn" id="drp-clear" type="button">Clear</button>
+    <button class="btn-gradient drp-apply-btn" id="drp-apply" type="button">Apply Range</button>
+  </div>
+</div>
+
+<script src="data-processor.js"></script>
+<script src="charts.js"></script>
+<script src="ai.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
